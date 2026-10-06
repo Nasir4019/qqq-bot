@@ -1,0 +1,77 @@
+name: qqq-paper-bot
+
+on:
+  schedule:
+    - cron: "0 13 * * 1-5"
+    - cron: "0 14 * * 1-5"
+    - cron: "30 16 * * 1-5"
+    - cron: "30 17 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      session:
+        description: "What to run by hand"
+        type: choice
+        options: [check, morning, afternoon]
+        default: check
+
+env:
+  APCA_KEY: ${{ secrets.APCA_KEY }}
+  APCA_SECRET: ${{ secrets.APCA_SECRET }}
+  LEVERAGE: "4"
+  DRY_RUN: "true"
+
+jobs:
+  check:
+    if: github.event_name == 'workflow_dispatch' && inputs.session == 'check'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install alpaca-py pandas numpy
+      - run: python qqq_bot.py --check
+
+  morning:
+    if: >
+      (github.event_name == 'schedule' && (github.event.schedule == '0 13 * * 1-5' || github.event.schedule == '0 14 * * 1-5'))
+      || (github.event_name == 'workflow_dispatch' && inputs.session == 'morning')
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    concurrency:
+      group: qqq-morning
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install alpaca-py pandas numpy
+      - run: python qqq_bot.py --first 10:00 --last 12:30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: log-morning-${{ github.run_id }}
+          path: trade_log.csv
+          if-no-files-found: ignore
+
+  afternoon:
+    if: >
+      (github.event_name == 'schedule' && (github.event.schedule == '30 16 * * 1-5' || github.event.schedule == '30 17 * * 1-5'))
+      || (github.event_name == 'workflow_dispatch' && inputs.session == 'afternoon')
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    concurrency:
+      group: qqq-afternoon
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install alpaca-py pandas numpy
+      - run: python qqq_bot.py --first 13:00 --last 15:30 --close
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: log-afternoon-${{ github.run_id }}
+          path: trade_log.csv
+          if-no-files-found: ignore
