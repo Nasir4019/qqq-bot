@@ -17,8 +17,8 @@ on:
 env:
   APCA_KEY: ${{ secrets.APCA_KEY }}
   APCA_SECRET: ${{ secrets.APCA_SECRET }}
-  LEVERAGE: "4"
-  DRY_RUN: "true"
+  LEVERAGE: "3.8"
+  DRY_RUN: "false"
 
 jobs:
   check:
