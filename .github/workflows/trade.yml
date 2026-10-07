@@ -2,16 +2,14 @@ name: qqq-paper-bot
 
 on:
   schedule:
-    - cron: "0 13 * * 1-5"
-    - cron: "0 14 * * 1-5"
-    - cron: "30 16 * * 1-5"
-    - cron: "30 17 * * 1-5"
+    - cron: "7 12 * * 1-5"
+    - cron: "23 16 * * 1-5"
   workflow_dispatch:
     inputs:
       session:
-        description: "What to run by hand"
+        description: "What to run by hand (fullday = morning then afternoon)"
         type: choice
-        options: [check, morning, afternoon]
+        options: [check, fullday, morning, afternoon]
         default: check
 
 env:
@@ -23,7 +21,7 @@ env:
 jobs:
   check:
     if: github.event_name == 'workflow_dispatch' && inputs.session == 'check'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -34,9 +32,9 @@ jobs:
 
   morning:
     if: >
-      (github.event_name == 'schedule' && (github.event.schedule == '0 13 * * 1-5' || github.event.schedule == '0 14 * * 1-5'))
-      || (github.event_name == 'workflow_dispatch' && inputs.session == 'morning')
-    runs-on: ubuntu-latest
+      (github.event_name == 'schedule' && github.event.schedule == '7 12 * * 1-5')
+      || (github.event_name == 'workflow_dispatch' && (inputs.session == 'morning' || inputs.session == 'fullday'))
+    runs-on: ubuntu-24.04
     timeout-minutes: 340
     concurrency:
       group: qqq-morning
@@ -55,10 +53,12 @@ jobs:
           if-no-files-found: ignore
 
   afternoon:
+    needs: [morning]
     if: >
-      (github.event_name == 'schedule' && (github.event.schedule == '30 16 * * 1-5' || github.event.schedule == '30 17 * * 1-5'))
-      || (github.event_name == 'workflow_dispatch' && inputs.session == 'afternoon')
-    runs-on: ubuntu-latest
+      always() && (
+      (github.event_name == 'schedule' && github.event.schedule == '23 16 * * 1-5')
+      || (github.event_name == 'workflow_dispatch' && (inputs.session == 'afternoon' || inputs.session == 'fullday')))
+    runs-on: ubuntu-24.04
     timeout-minutes: 340
     concurrency:
       group: qqq-afternoon
